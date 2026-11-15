@@ -37,7 +37,11 @@ public final class ChatGroup {
     }
 
     public synchronized Optional<StatusChange> registrarEnvio(UserId user) {
-        throw new UnsupportedOperationException("Pendiente de implementar");
+        Objects.requireNonNull(user, "El usuario es obligatorio");
+        Optional<StatusChange> cambio = Optional.ofNullable(usuarios.get(user))
+                .flatMap(UserTypingState::registrarEnvio);
+        cambio.ifPresent(detenido -> usuarios.remove(user));
+        return cambio;
     }
 
     public synchronized int usuariosActivos() {

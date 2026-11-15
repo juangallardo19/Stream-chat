@@ -14,7 +14,7 @@ public final class TypingState implements ActivityState {
 
     @Override
     public ActivityState alEnviarMensaje() {
-        throw new UnsupportedOperationException("Pendiente de implementar");
+        return new StoppedState();
     }
 
     @Override

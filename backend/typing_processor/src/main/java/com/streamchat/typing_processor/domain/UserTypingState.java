@@ -39,7 +39,7 @@ public final class UserTypingState {
     }
 
     public Optional<StatusChange> registrarEnvio() {
-        throw new UnsupportedOperationException("Pendiente de implementar");
+        return transicionarA(estado.alEnviarMensaje());
     }
 
     public TypingStatus status() {

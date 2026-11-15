@@ -14,6 +14,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Service
@@ -38,6 +39,10 @@ public class TypingProcessorService {
     }
 
     public void registrarEnvio(MessageSent envio) {
+        Objects.requireNonNull(envio, "El envío es obligatorio");
+        Optional.ofNullable(grupos.get(envio.group()))
+                .flatMap(grupo -> grupo.registrarEnvio(envio.user()))
+                .ifPresent(notifier::notificar);
     }
 
     public void detectarInactividad() {

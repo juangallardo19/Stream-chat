@@ -14,7 +14,7 @@ public final class StoppedState implements ActivityState {
 
     @Override
     public ActivityState alEnviarMensaje() {
-        throw new UnsupportedOperationException("Pendiente de implementar");
+        return this;
     }
 
     @Override
