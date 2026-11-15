@@ -5,9 +5,10 @@ const ESPERA_RECONEXION_MS = 3000;
 const estado = {
     usuario: "",
     grupo: "",
-    socketChat: null,
-    reconexion: null,
-    colores: new Map()
+    sockets: new Map(),
+    reconexiones: new Map(),
+    colores: new Map(),
+    escribiendo: new Set()
 };
 
 const PALETA = ["#e11d48", "#0891b2", "#16a34a", "#d97706", "#9333ea", "#2563eb", "#db2777", "#0d9488"];
@@ -23,7 +24,25 @@ const elementos = {
     formularioMensaje: document.getElementById("formulario-mensaje"),
     texto: document.getElementById("texto"),
     error: document.getElementById("error"),
-    estadoChat: document.getElementById("estado-chat")
+    estadoChat: document.getElementById("estado-chat"),
+    estadoTecleo: document.getElementById("estado-tecleo"),
+    indicador: document.getElementById("indicador"),
+    textoIndicador: document.getElementById("texto-indicador")
+};
+
+const CANALES = {
+    chat: {
+        ruta: "/ws/chat",
+        etiqueta: "Mensajes",
+        indicador: elementos.estadoChat,
+        alRecibir: (datos) => mostrarMensaje(datos)
+    },
+    estado: {
+        ruta: "/ws/status",
+        etiqueta: "Estado",
+        indicador: elementos.estadoTecleo,
+        alRecibir: (datos) => actualizarTecleo(datos)
+    }
 };
 
 function direccionWebSocket(ruta) {
@@ -32,10 +51,10 @@ function direccionWebSocket(ruta) {
     return `${protocolo}//${location.host}${ruta}?${consulta}`;
 }
 
-function marcarConexion(conectado) {
-    elementos.estadoChat.textContent = conectado ? "Mensajes: conectado" : "Mensajes: desconectado";
-    elementos.estadoChat.classList.toggle("conectado", conectado);
-    elementos.estadoChat.classList.toggle("desconectado", !conectado);
+function marcarConexion(canal, conectado) {
+    canal.indicador.textContent = `${canal.etiqueta}: ${conectado ? "conectado" : "desconectado"}`;
+    canal.indicador.classList.toggle("conectado", conectado);
+    canal.indicador.classList.toggle("desconectado", !conectado);
 }
 
 function horaLocal(instante) {
@@ -72,21 +91,58 @@ function mostrarMensaje(mensaje) {
     elementos.mensajes.scrollTop = elementos.mensajes.scrollHeight;
 }
 
-function conectarChat() {
-    clearTimeout(estado.reconexion);
-    const socket = new WebSocket(direccionWebSocket("/ws/chat"));
-    estado.socketChat = socket;
+function actualizarTecleo(cambio) {
+    if (cambio.user === estado.usuario) {
+        return;
+    }
+    if (cambio.status === "TYPING") {
+        estado.escribiendo.add(cambio.user);
+    } else {
+        estado.escribiendo.delete(cambio.user);
+    }
+    mostrarIndicador();
+}
 
-    socket.onopen = () => marcarConexion(true);
-    socket.onmessage = (evento) => mostrarMensaje(JSON.parse(evento.data));
+function fraseDeTecleo(nombres) {
+    if (nombres.length === 1) {
+        return `${nombres[0]} está escribiendo…`;
+    }
+    if (nombres.length === 2) {
+        return `${nombres[0]} y ${nombres[1]} están escribiendo…`;
+    }
+    return "Varias personas están escribiendo…";
+}
+
+function mostrarIndicador() {
+    const nombres = [...estado.escribiendo];
+    elementos.indicador.classList.toggle("oculto", nombres.length === 0);
+    elementos.textoIndicador.textContent = nombres.length === 0 ? "" : fraseDeTecleo(nombres);
+}
+
+function conectar(nombre) {
+    const canal = CANALES[nombre];
+    clearTimeout(estado.reconexiones.get(nombre));
+    const socket = new WebSocket(direccionWebSocket(canal.ruta));
+    estado.sockets.set(nombre, socket);
+
+    socket.onopen = () => marcarConexion(canal, true);
+    socket.onmessage = (evento) => canal.alRecibir(JSON.parse(evento.data));
     socket.onclose = (evento) => {
-        marcarConexion(false);
+        marcarConexion(canal, false);
         if (evento.code === 1008) {
             elementos.error.textContent = evento.reason || "El grupo no es válido.";
             return;
         }
-        estado.reconexion = setTimeout(conectarChat, ESPERA_RECONEXION_MS);
+        estado.reconexiones.set(nombre, setTimeout(() => conectar(nombre), ESPERA_RECONEXION_MS));
     };
+}
+
+function avisarTecleo() {
+    fetch("/typing", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user: estado.usuario, group: estado.grupo })
+    }).catch(() => undefined);
 }
 
 async function enviarMensaje(texto) {
@@ -113,9 +169,12 @@ elementos.formularioEntrada.addEventListener("submit", (evento) => {
     elementos.tituloSala.textContent = estado.grupo;
     elementos.subtituloSala.textContent = `Conectado como ${estado.usuario}`;
     colorDe(estado.usuario);
-    conectarChat();
+    conectar("chat");
+    conectar("estado");
     elementos.texto.focus();
 });
+
+elementos.texto.addEventListener("input", avisarTecleo);
 
 elementos.formularioMensaje.addEventListener("submit", (evento) => {
     evento.preventDefault();
