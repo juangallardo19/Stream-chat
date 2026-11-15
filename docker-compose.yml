@@ -169,6 +169,33 @@ services:
           cpus: '0.50'
           memory: 384M
 
+  typing_api:
+    build: ./backend/typing_api
+    image: ${REGISTRY_USER:-streamchat}/typing_api:${APP_VERSION:-latest}
+    restart: on-failure
+    depends_on:
+      kafka-init:
+        condition: service_completed_successfully
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_ACTIVE_PROFILE}
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      CHAT_GROUPS: ${CHAT_GROUPS}
+    networks:
+      - frontend-net
+      - broker-net
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health | grep -q UP"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+    deploy:
+      replicas: ${TYPING_API_REPLICAS:-2}
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 384M
+
   chat_backend:
     build: ./backend/chat_backend
     image: ${REGISTRY_USER:-streamchat}/chat_backend:${APP_VERSION:-latest}
@@ -272,6 +299,8 @@ services:
     restart: always
     depends_on:
       chat_api:
+        condition: service_healthy
+      typing_api:
         condition: service_healthy
       chat_backend:
         condition: service_healthy
