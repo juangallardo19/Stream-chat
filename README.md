@@ -29,7 +29,7 @@ cd backend/chat_api && mvn test
 | audit_bridge | 38 |
 | analytics_service | 48 |
 | typing_api | 65 |
-| typing_processor | 96 (State, Strategy con Factory, Observer y adaptadores) |
+| typing_processor | 112 (State, Strategy con Factory, Observer, adaptadores y señal de envío) |
 | status_backend | 82 |
 
 ## Verificación por fase
@@ -131,7 +131,8 @@ Se espera un solo `TYPING` y un solo `STOPPED` de Ana aunque se enviaron 10 even
 2. Arriba deben verse en verde "Mensajes: conectado" y "Estado: conectado".
 3. Escribe en la ventana de Ana sin enviar: en la de Luis aparece "Ana está escribiendo…" con tres puntos animados.
 4. Deja de escribir: unos 4 segundos después el indicador desaparece.
-5. Una tercera ventana en otro grupo no ve el indicador.
+5. Escribe y presiona Enter: el indicador desaparece de inmediato. Si Ana vuelve a teclear, aparece otra vez.
+6. Una tercera ventana en otro grupo no ve el indicador.
 
 ```bash
 docker logs streamchat_typing_processor 2>&1 | grep Debounce

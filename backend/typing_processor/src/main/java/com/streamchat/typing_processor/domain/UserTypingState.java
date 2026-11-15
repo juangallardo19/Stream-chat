@@ -38,6 +38,10 @@ public final class UserTypingState {
         return transicionarA(estado.alExpirar());
     }
 
+    public Optional<StatusChange> registrarEnvio() {
+        return transicionarA(estado.alEnviarMensaje());
+    }
+
     public TypingStatus status() {
         return estado.status();
     }

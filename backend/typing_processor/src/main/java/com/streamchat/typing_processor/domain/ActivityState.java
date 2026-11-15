@@ -6,5 +6,7 @@ public sealed interface ActivityState permits TypingState, StoppedState {
 
     ActivityState alExpirar();
 
+    ActivityState alEnviarMensaje();
+
     TypingStatus status();
 }

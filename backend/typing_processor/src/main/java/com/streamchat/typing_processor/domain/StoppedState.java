@@ -13,6 +13,11 @@ public final class StoppedState implements ActivityState {
     }
 
     @Override
+    public ActivityState alEnviarMensaje() {
+        return this;
+    }
+
+    @Override
     public TypingStatus status() {
         return TypingStatus.STOPPED;
     }
