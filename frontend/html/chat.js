@@ -35,7 +35,10 @@ const CANALES = {
         ruta: "/ws/chat",
         etiqueta: "Mensajes",
         indicador: elementos.estadoChat,
-        alRecibir: (datos) => mostrarMensaje(datos)
+        alRecibir: (datos) => {
+            mostrarMensaje(datos);
+            quitarDeTecleo(datos.user);
+        }
     },
     estado: {
         ruta: "/ws/status",
@@ -101,6 +104,12 @@ function actualizarTecleo(cambio) {
         estado.escribiendo.delete(cambio.user);
     }
     mostrarIndicador();
+}
+
+function quitarDeTecleo(usuario) {
+    if (estado.escribiendo.delete(usuario)) {
+        mostrarIndicador();
+    }
 }
 
 function fraseDeTecleo(nombres) {
