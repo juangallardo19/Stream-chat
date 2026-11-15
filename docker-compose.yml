@@ -168,6 +168,39 @@ services:
           cpus: '0.50'
           memory: 384M
 
+  chat_backend:
+    build: ./backend/chat_backend
+    image: ${REGISTRY_USER:-streamchat}/chat_backend:${APP_VERSION:-latest}
+    container_name: streamchat_chat_backend
+    restart: on-failure
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_ACTIVE_PROFILE}
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: ${RABBIT_USER}
+      SPRING_RABBITMQ_PASSWORD: ${RABBIT_PASSWORD}
+      CHAT_GROUPS: ${CHAT_GROUPS}
+      CORS_ORIGIN: ${CORS_ORIGIN}
+    ports:
+      - "8081:8081"
+    networks:
+      - frontend-net
+      - broker-net
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8081/actuator/health | grep -q UP"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 384M
+
   web-gateway:
     build: ./frontend
     image: ${REGISTRY_USER:-streamchat}/web-gateway:${APP_VERSION:-latest}
@@ -175,6 +208,8 @@ services:
     restart: always
     depends_on:
       chat_api:
+        condition: service_healthy
+      chat_backend:
         condition: service_healthy
     ports:
       - "80:80"
