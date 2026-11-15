@@ -29,6 +29,7 @@ cd backend/chat_api && mvn test
 | audit_bridge | 38 |
 | analytics_service | 48 |
 | typing_api | 65 |
+| typing_processor | 96 (State, Strategy con Factory, Observer y adaptadores) |
 
 ## Verificación por fase
 
@@ -105,6 +106,23 @@ docker exec streamchat_kafka kafka-console-consumer --bootstrap-server localhost
 ```
 
 Se espera `202` sin cuerpo, `400` con detalle por campo, `404`, y en Kafka cada evento con su clave (el grupo). Los eventos de tecleo se borran a los 5 minutos (`retention.ms=300000`).
+
+### Fase 6 — typing_processor (debounce y `status_updates`)
+
+Un fanout sin colas descarta los mensajes, así que hasta que exista `status_backend` se comprueba con una cola temporal (en Git Bash):
+
+```bash
+docker exec streamchat_rabbitmq sh -c 'rabbitmqadmin -u "$RABBITMQ_DEFAULT_USER" -p "$RABBITMQ_DEFAULT_PASS" declare exchange name=status_updates type=fanout durable=true'
+docker exec streamchat_rabbitmq sh -c 'rabbitmqadmin -u "$RABBITMQ_DEFAULT_USER" -p "$RABBITMQ_DEFAULT_PASS" declare queue name=prueba.status durable=false'
+docker exec streamchat_rabbitmq sh -c 'rabbitmqadmin -u "$RABBITMQ_DEFAULT_USER" -p "$RABBITMQ_DEFAULT_PASS" declare binding source=status_updates destination=prueba.status'
+for i in 1 2 3 4 5 6 7 8 9 10; do curl -s -o /dev/null -X POST http://localhost/typing -H "Content-Type: application/json" -d '{"user":"Ana","group":"GrupoA"}'; done
+sleep 6
+docker exec streamchat_rabbitmq sh -c 'rabbitmqadmin -u "$RABBITMQ_DEFAULT_USER" -p "$RABBITMQ_DEFAULT_PASS" get queue=prueba.status count=20 ackmode=ack_requeue_false'
+docker logs streamchat_typing_processor 2>&1 | grep Debounce
+docker exec streamchat_rabbitmq sh -c 'rabbitmqadmin -u "$RABBITMQ_DEFAULT_USER" -p "$RABBITMQ_DEFAULT_PASS" delete queue name=prueba.status'
+```
+
+Se espera un solo `TYPING` y un solo `STOPPED` de Ana aunque se enviaron 10 eventos, y en el log `Debounce: N eventos -> M transiciones`.
 
 `docker compose down` conserva los datos; `docker compose down -v` borra los volúmenes y la próxima vez `init.sql` corre solo.
 
