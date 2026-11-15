@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stream-Chat</title>
+    <link rel="stylesheet" href="chat.css">
+</head>
+<body>
+<main class="app">
+    <header class="cabecera">
+        <div class="marca">
+            <span class="logo">SC</span>
+            <h1>Stream-Chat</h1>
+        </div>
+        <div class="conexiones">
+            <span id="estado-chat" class="conexion desconectado">Mensajes: desconectado</span>
+        </div>
+    </header>
+
+    <form id="formulario-entrada" class="entrada tarjeta">
+        <h2>Entra a un grupo</h2>
+        <p>Escribe tu nombre y elige el grupo en el que quieres conversar.</p>
+        <label>Usuario
+            <input id="usuario" type="text" maxlength="40" pattern="[A-Za-z0-9_\-]+" required placeholder="Ana">
+        </label>
+        <label>Grupo
+            <select id="grupo">
+                <option value="GrupoA">GrupoA</option>
+                <option value="GrupoB">GrupoB</option>
+                <option value="GrupoC">GrupoC</option>
+            </select>
+        </label>
+        <button type="submit">Entrar</button>
+    </form>
+
+    <section id="sala" class="sala tarjeta oculto">
+        <div class="sala-cabecera">
+            <h2 id="titulo-sala"></h2>
+            <span id="subtitulo-sala"></span>
+        </div>
+        <ul id="mensajes" class="mensajes"></ul>
+        <form id="formulario-mensaje" class="envio">
+            <input id="texto" type="text" maxlength="1000" autocomplete="off" placeholder="Escribe un mensaje y presiona Enter">
+            <button type="submit">Enviar</button>
+        </form>
+        <p id="error" class="error"></p>
+    </section>
+</main>
+<script src="chat.js"></script>
+</body>
+</html>
