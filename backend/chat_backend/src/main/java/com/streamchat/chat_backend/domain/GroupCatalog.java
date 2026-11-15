@@ -2,7 +2,7 @@ package com.streamchat.chat_backend.domain;
 
 import com.streamchat.chat_backend.exception.GrupoNoEncontradoException;
 
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -12,9 +12,11 @@ import java.util.Optional;
 public final class GroupCatalog {
 
     private final Map<String, GroupId> gruposPorClave;
+    private final List<GroupId> gruposEnOrden;
 
     private GroupCatalog(Map<String, GroupId> gruposPorClave) {
         this.gruposPorClave = Map.copyOf(gruposPorClave);
+        this.gruposEnOrden = List.copyOf(gruposPorClave.values());
     }
 
     public static GroupCatalog desde(List<String> nombres) {
@@ -22,7 +24,7 @@ public final class GroupCatalog {
         if (nombres.isEmpty()) {
             throw new IllegalArgumentException("El catálogo de grupos no puede estar vacío");
         }
-        Map<String, GroupId> grupos = new HashMap<>();
+        Map<String, GroupId> grupos = new LinkedHashMap<>();
         nombres.forEach(nombre -> registrar(grupos, new GroupId(nombre)));
         return new GroupCatalog(grupos);
     }
@@ -34,7 +36,7 @@ public final class GroupCatalog {
     }
 
     public List<GroupId> grupos() {
-        throw new UnsupportedOperationException("Pendiente de implementar");
+        return gruposEnOrden;
     }
 
     private static void registrar(Map<String, GroupId> grupos, GroupId grupo) {
