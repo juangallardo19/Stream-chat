@@ -201,6 +201,37 @@ services:
           cpus: '0.50'
           memory: 384M
 
+  audit_bridge:
+    build: ./backend/audit_bridge
+    image: ${REGISTRY_USER:-streamchat}/audit_bridge:${APP_VERSION:-latest}
+    restart: on-failure
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      kafka-init:
+        condition: service_completed_successfully
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_ACTIVE_PROFILE}
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: ${RABBIT_USER}
+      SPRING_RABBITMQ_PASSWORD: ${RABBIT_PASSWORD}
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    networks:
+      - broker-net
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health | grep -q UP"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+    deploy:
+      replicas: ${AUDIT_BRIDGE_REPLICAS:-2}
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 384M
+
   web-gateway:
     build: ./frontend
     image: ${REGISTRY_USER:-streamchat}/web-gateway:${APP_VERSION:-latest}
