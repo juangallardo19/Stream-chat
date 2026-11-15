@@ -16,6 +16,6 @@ class WebSocketGroupBroadcaster implements GroupBroadcaster {
 
     @Override
     public int difundir(ChatMessage mensaje) {
-        throw new UnsupportedOperationException("Pendiente de implementar");
+        return sesiones.difundir(mensaje);
     }
 }
