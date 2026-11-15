@@ -196,6 +196,39 @@ services:
           cpus: '0.50'
           memory: 384M
 
+  typing_processor:
+    build: ./backend/typing_processor
+    image: ${REGISTRY_USER:-streamchat}/typing_processor:${APP_VERSION:-latest}
+    container_name: streamchat_typing_processor
+    restart: on-failure
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      kafka-init:
+        condition: service_completed_successfully
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_ACTIVE_PROFILE}
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: ${RABBIT_USER}
+      SPRING_RABBITMQ_PASSWORD: ${RABBIT_PASSWORD}
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      TYPING_WINDOW_MS: ${TYPING_WINDOW_MS}
+      TYPING_STRATEGY: ${TYPING_STRATEGY}
+    networks:
+      - broker-net
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health | grep -q UP"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.75'
+          memory: 384M
+
   chat_backend:
     build: ./backend/chat_backend
     image: ${REGISTRY_USER:-streamchat}/chat_backend:${APP_VERSION:-latest}
