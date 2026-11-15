@@ -1,27 +1,46 @@
 package com.streamchat.typing_processor.domain;
 
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 
 public final class ChatGroup {
 
-    private ChatGroup() {
+    private final GroupId groupId;
+    private final Map<UserId, UserTypingState> usuarios = new HashMap<>();
+
+    private ChatGroup(GroupId groupId) {
+        this.groupId = groupId;
     }
 
     public static ChatGroup nuevo(GroupId groupId) {
-        return new ChatGroup();
+        Objects.requireNonNull(groupId, "El grupo es obligatorio");
+        return new ChatGroup(groupId);
     }
 
-    public Optional<StatusChange> registrarActividad(UserId user, Instant ahora) {
-        throw new UnsupportedOperationException("Pendiente de implementar");
+    public synchronized Optional<StatusChange> registrarActividad(UserId user, Instant ahora) {
+        Objects.requireNonNull(user, "El usuario es obligatorio");
+        return usuarios.computeIfAbsent(user, nuevo -> UserTypingState.nuevo(nuevo, groupId))
+                .registrarPulsacion(ahora);
     }
 
-    public List<StatusChange> evaluarInactividad(Instant ahora, InactivityStrategy estrategia) {
-        throw new UnsupportedOperationException("Pendiente de implementar");
+    public synchronized List<StatusChange> evaluarInactividad(Instant ahora, InactivityStrategy estrategia) {
+        List<StatusChange> cambios = usuarios.values().stream()
+                .map(estado -> estado.evaluarEstadoTyping(ahora, estrategia))
+                .flatMap(Optional::stream)
+                .toList();
+        usuarios.values().removeIf(estado -> estado.status() == TypingStatus.STOPPED);
+        return cambios;
     }
 
-    public int usuariosActivos() {
-        throw new UnsupportedOperationException("Pendiente de implementar");
+    public synchronized int usuariosActivos() {
+        return usuarios.size();
+    }
+
+    public GroupId groupId() {
+        return groupId;
     }
 }

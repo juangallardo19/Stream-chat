@@ -4,16 +4,16 @@ public final class TypingState implements ActivityState {
 
     @Override
     public ActivityState alTeclear() {
-        throw new UnsupportedOperationException("Pendiente de implementar");
+        return this;
     }
 
     @Override
     public ActivityState alExpirar() {
-        throw new UnsupportedOperationException("Pendiente de implementar");
+        return new StoppedState();
     }
 
     @Override
     public TypingStatus status() {
-        throw new UnsupportedOperationException("Pendiente de implementar");
+        return TypingStatus.TYPING;
     }
 }
