@@ -36,6 +36,10 @@ public final class ChatGroup {
         return cambios;
     }
 
+    public synchronized Optional<StatusChange> registrarEnvio(UserId user) {
+        throw new UnsupportedOperationException("Pendiente de implementar");
+    }
+
     public synchronized int usuariosActivos() {
         return usuarios.size();
     }

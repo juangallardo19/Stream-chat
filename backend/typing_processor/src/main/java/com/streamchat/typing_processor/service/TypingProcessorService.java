@@ -3,6 +3,7 @@ package com.streamchat.typing_processor.service;
 import com.streamchat.typing_processor.domain.ChatGroup;
 import com.streamchat.typing_processor.domain.GroupId;
 import com.streamchat.typing_processor.domain.InactivityStrategy;
+import com.streamchat.typing_processor.domain.MessageSent;
 import com.streamchat.typing_processor.domain.StatusChange;
 import com.streamchat.typing_processor.domain.TypingEvent;
 import com.streamchat.typing_processor.domain.TypingStatusNotifier;
@@ -34,6 +35,9 @@ public class TypingProcessorService {
         grupos.computeIfAbsent(evento.group(), ChatGroup::nuevo)
                 .registrarActividad(evento.user(), evento.occurredAt())
                 .ifPresent(notifier::notificar);
+    }
+
+    public void registrarEnvio(MessageSent envio) {
     }
 
     public void detectarInactividad() {

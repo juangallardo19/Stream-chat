@@ -38,6 +38,10 @@ public final class UserTypingState {
         return transicionarA(estado.alExpirar());
     }
 
+    public Optional<StatusChange> registrarEnvio() {
+        throw new UnsupportedOperationException("Pendiente de implementar");
+    }
+
     public TypingStatus status() {
         return estado.status();
     }
