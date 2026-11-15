@@ -30,6 +30,7 @@ cd backend/chat_api && mvn test
 | analytics_service | 48 |
 | typing_api | 65 |
 | typing_processor | 96 (State, Strategy con Factory, Observer y adaptadores) |
+| status_backend | 82 |
 
 ## Verificación por fase
 
@@ -123,6 +124,19 @@ docker exec streamchat_rabbitmq sh -c 'rabbitmqadmin -u "$RABBITMQ_DEFAULT_USER"
 ```
 
 Se espera un solo `TYPING` y un solo `STOPPED` de Ana aunque se enviaron 10 eventos, y en el log `Debounce: N eventos -> M transiciones`.
+
+### Fase 7 — status_backend e indicador "está escribiendo…"
+
+1. Abre `http://localhost` en dos ventanas y entra al mismo grupo con nombres distintos (por ejemplo Ana y Luis).
+2. Arriba deben verse en verde "Mensajes: conectado" y "Estado: conectado".
+3. Escribe en la ventana de Ana sin enviar: en la de Luis aparece "Ana está escribiendo…" con tres puntos animados.
+4. Deja de escribir: unos 4 segundos después el indicador desaparece.
+5. Una tercera ventana en otro grupo no ve el indicador.
+
+```bash
+docker logs streamchat_typing_processor 2>&1 | grep Debounce
+docker logs streamchat_status_backend 2>&1 | grep "entregado a"
+```
 
 `docker compose down` conserva los datos; `docker compose down -v` borra los volúmenes y la próxima vez `init.sql` corre solo.
 

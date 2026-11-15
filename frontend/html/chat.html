@@ -15,6 +15,7 @@
         </div>
         <div class="conexiones">
             <span id="estado-chat" class="conexion desconectado">Mensajes: desconectado</span>
+            <span id="estado-tecleo" class="conexion desconectado">Estado: desconectado</span>
         </div>
     </header>
 
@@ -40,6 +41,10 @@
             <span id="subtitulo-sala"></span>
         </div>
         <ul id="mensajes" class="mensajes"></ul>
+        <div id="indicador" class="indicador oculto" aria-live="polite">
+            <span class="puntos"><span></span><span></span><span></span></span>
+            <span id="texto-indicador"></span>
+        </div>
         <form id="formulario-mensaje" class="envio">
             <input id="texto" type="text" maxlength="1000" autocomplete="off" placeholder="Escribe un mensaje y presiona Enter">
             <button type="submit">Enviar</button>
