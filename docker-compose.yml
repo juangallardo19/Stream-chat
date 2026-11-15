@@ -1,0 +1,208 @@
+name: streamchat
+
+services:
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.6.1
+    container_name: streamchat_zookeeper
+    restart: always
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+      KAFKA_HEAP_OPTS: "-Xms128m -Xmx128m"
+    volumes:
+      - zookeeper_data:/var/lib/zookeeper/data
+      - zookeeper_log:/var/lib/zookeeper/log
+    networks:
+      - broker-net
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/localhost/2181'"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 256M
+
+  kafka:
+    image: confluentinc/cp-kafka:7.6.1
+    container_name: streamchat_kafka
+    restart: always
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_HEAP_OPTS: "-Xms512m -Xmx512m"
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    networks:
+      - broker-net
+    healthcheck:
+      test: ["CMD-SHELL", "KAFKA_HEAP_OPTS='-Xms32m -Xmx96m' kafka-topics --bootstrap-server localhost:9092 --list"]
+      interval: 15s
+      timeout: 20s
+      retries: 10
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: '1.00'
+          memory: 1024M
+
+  kafka-init:
+    image: confluentinc/cp-kafka:7.6.1
+    container_name: streamchat_kafka_init
+    restart: "no"
+    depends_on:
+      kafka:
+        condition: service_healthy
+    environment:
+      KAFKA_HEAP_OPTS: "-Xms32m -Xmx128m"
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - |
+        set -e
+        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic typing_events --partitions 3 --replication-factor 1 --config retention.ms=300000
+        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic message_audit_log --partitions 3 --replication-factor 1 --config retention.ms=-1
+        kafka-topics --bootstrap-server kafka:9092 --describe --topic typing_events
+        kafka-topics --bootstrap-server kafka:9092 --describe --topic message_audit_log
+    networks:
+      - broker-net
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 256M
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: streamchat_rabbitmq
+    hostname: rabbitmq
+    restart: always
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBIT_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBIT_PASSWORD}
+    ports:
+      - "127.0.0.1:15672:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - broker-net
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "check_port_connectivity"]
+      interval: 15s
+      timeout: 10s
+      retries: 6
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.75'
+          memory: 512M
+
+  postgres-db:
+    image: postgres:15-alpine
+    container_name: streamchat_postgres
+    restart: always
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - persistence-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.75'
+          memory: 512M
+
+  chat_api:
+    build: ./backend/chat_api
+    image: ${REGISTRY_USER:-streamchat}/chat_api:${APP_VERSION:-latest}
+    restart: on-failure
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_ACTIVE_PROFILE}
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: ${RABBIT_USER}
+      SPRING_RABBITMQ_PASSWORD: ${RABBIT_PASSWORD}
+      CHAT_GROUPS: ${CHAT_GROUPS}
+    networks:
+      - frontend-net
+      - broker-net
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health | grep -q UP"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+    deploy:
+      replicas: ${CHAT_API_REPLICAS:-2}
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 384M
+
+  web-gateway:
+    build: ./frontend
+    image: ${REGISTRY_USER:-streamchat}/web-gateway:${APP_VERSION:-latest}
+    container_name: streamchat_web_gateway
+    restart: always
+    depends_on:
+      chat_api:
+        condition: service_healthy
+    ports:
+      - "80:80"
+    networks:
+      - frontend-net
+    healthcheck:
+      test: ["CMD", "pgrep", "nginx"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 128M
+
+volumes:
+  zookeeper_data:
+  zookeeper_log:
+  kafka_data:
+  rabbitmq_data:
+  pgdata:
+
+networks:
+  frontend-net:
+    driver: bridge
+  broker-net:
+    driver: bridge
+  persistence-net:
+    driver: bridge
+    internal: true
