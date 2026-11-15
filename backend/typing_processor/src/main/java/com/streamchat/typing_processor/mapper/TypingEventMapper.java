@@ -1,7 +1,11 @@
 package com.streamchat.typing_processor.mapper;
 
+import com.streamchat.typing_processor.domain.GroupId;
 import com.streamchat.typing_processor.domain.TypingEvent;
+import com.streamchat.typing_processor.domain.UserId;
 import com.streamchat.typing_processor.dto.TypingEventPayload;
+
+import java.util.Objects;
 
 public final class TypingEventMapper {
 
@@ -9,6 +13,7 @@ public final class TypingEventMapper {
     }
 
     public static TypingEvent aDominio(TypingEventPayload payload) {
-        throw new UnsupportedOperationException("Pendiente de implementar");
+        Objects.requireNonNull(payload, "El payload es obligatorio");
+        return new TypingEvent(new UserId(payload.user()), new GroupId(payload.group()), payload.occurredAt());
     }
 }
