@@ -124,6 +124,7 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD}
     volumes:
       - pgdata:/var/lib/postgresql/data
+      - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     networks:
       - persistence-net
     healthcheck:
@@ -231,6 +232,38 @@ services:
         limits:
           cpus: '0.50'
           memory: 384M
+
+  analytics_service:
+    build: ./backend/analytics_service
+    image: ${REGISTRY_USER:-streamchat}/analytics_service:${APP_VERSION:-latest}
+    restart: on-failure
+    depends_on:
+      postgres-db:
+        condition: service_healthy
+      kafka-init:
+        condition: service_completed_successfully
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_ACTIVE_PROFILE}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-db:5432/${DB_NAME}
+      SPRING_DATASOURCE_USERNAME: ${DB_USER}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    networks:
+      - frontend-net
+      - broker-net
+      - persistence-net
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health | grep -q UP"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+    deploy:
+      replicas: ${ANALYTICS_REPLICAS:-2}
+      resources:
+        limits:
+          cpus: '0.75'
+          memory: 512M
 
   web-gateway:
     build: ./frontend
