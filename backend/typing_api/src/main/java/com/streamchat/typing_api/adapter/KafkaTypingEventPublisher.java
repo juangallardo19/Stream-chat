@@ -7,6 +7,7 @@ import com.streamchat.typing_api.mapper.TypingEventMapper;
 import com.streamchat.typing_api.port.TypingEventPublisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.kafka.KafkaException;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 
@@ -29,8 +30,13 @@ class KafkaTypingEventPublisher implements TypingEventPublisher {
     @Override
     public void publicar(TypingEvent evento) {
         Objects.requireNonNull(evento, "El evento de tecleo es obligatorio");
-        kafkaTemplate.send(TOPIC, evento.claveParticion(), aJson(evento))
-                .whenComplete((resultado, error) -> registrarFallo(evento, error));
+        String json = aJson(evento);
+        try {
+            kafkaTemplate.send(TOPIC, evento.claveParticion(), json)
+                    .whenComplete((resultado, error) -> registrarFallo(evento, error));
+        } catch (KafkaException error) {
+            registrarFallo(evento, error);
+        }
     }
 
     private String aJson(TypingEvent evento) {
