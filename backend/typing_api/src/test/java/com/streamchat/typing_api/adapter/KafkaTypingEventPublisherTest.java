@@ -7,6 +7,8 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.streamchat.typing_api.domain.GroupId;
 import com.streamchat.typing_api.domain.TypingEvent;
 import com.streamchat.typing_api.domain.UserId;
+import org.apache.kafka.common.config.ConfigException;
+import org.apache.kafka.common.errors.TimeoutException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -15,10 +17,12 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.kafka.KafkaException;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.SendResult;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
@@ -79,6 +83,44 @@ class KafkaTypingEventPublisherTest {
     }
 
     @Nested
+    @DisplayName("Al arrancar el servicio")
+    class Calentamiento {
+
+        @Test
+        @DisplayName("pide una sola vez las particiones de typing_events para dejar listo el productor")
+        void pideLasParticionesUnaVez() {
+            when(kafkaTemplate.partitionsFor("typing_events")).thenReturn(List.of());
+
+            publicador.afterSingletonsInstantiated();
+
+            verify(kafkaTemplate, times(1)).partitionsFor("typing_events");
+        }
+
+        @Test
+        @DisplayName("no impide el arranque si Kafka no responde a tiempo")
+        void arrancaSiKafkaNoResponde() {
+            when(kafkaTemplate.partitionsFor("typing_events"))
+                    .thenThrow(new TimeoutException("Topic typing_events not present in metadata after 2000 ms."));
+
+            assertDoesNotThrow(() -> publicador.afterSingletonsInstantiated());
+
+            verify(kafkaTemplate, times(1)).partitionsFor("typing_events");
+        }
+
+        @Test
+        @DisplayName("no impide el arranque si el productor no se puede crear")
+        void arrancaSinProductor() {
+            when(kafkaTemplate.partitionsFor("typing_events"))
+                    .thenThrow(new org.apache.kafka.common.KafkaException("Failed to construct kafka producer",
+                            new ConfigException("No resolvable bootstrap urls given in bootstrap.servers")));
+
+            assertDoesNotThrow(() -> publicador.afterSingletonsInstantiated());
+
+            verify(kafkaTemplate, times(1)).partitionsFor("typing_events");
+        }
+    }
+
+    @Nested
     @DisplayName("Cuando Kafka falla")
     class KafkaFalla {
 
@@ -87,6 +129,30 @@ class KafkaTypingEventPublisherTest {
         void aceptaLaPerdida() {
             when(kafkaTemplate.send(anyString(), anyString(), anyString()))
                     .thenReturn(CompletableFuture.failedFuture(new RuntimeException("broker caído")));
+
+            assertDoesNotThrow(() -> publicador.publicar(evento));
+
+            verify(kafkaTemplate, times(1)).send(anyString(), anyString(), anyString());
+        }
+
+        @Test
+        @DisplayName("descarta el evento sin propagar el error cuando send falla de forma síncrona")
+        void descartaFalloSincrono() {
+            when(kafkaTemplate.send(anyString(), anyString(), anyString()))
+                    .thenThrow(new KafkaException("Send failed",
+                            new TimeoutException("Topic typing_events not present in metadata after 2000 ms.")));
+
+            assertDoesNotThrow(() -> publicador.publicar(evento));
+
+            verify(kafkaTemplate, times(1)).send(anyString(), anyString(), anyString());
+        }
+
+        @Test
+        @DisplayName("descarta el evento sin propagar el error cuando el productor no se puede crear")
+        void descartaProductorSinCrear() {
+            when(kafkaTemplate.send(anyString(), anyString(), anyString()))
+                    .thenThrow(new org.apache.kafka.common.KafkaException("Failed to construct kafka producer",
+                            new ConfigException("No resolvable bootstrap urls given in bootstrap.servers")));
 
             assertDoesNotThrow(() -> publicador.publicar(evento));
 

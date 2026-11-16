@@ -7,13 +7,15 @@ import com.streamchat.typing_api.mapper.TypingEventMapper;
 import com.streamchat.typing_api.port.TypingEventPublisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.SmartInitializingSingleton;
+import org.springframework.kafka.KafkaException;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 
 import java.util.Objects;
 
 @Component
-class KafkaTypingEventPublisher implements TypingEventPublisher {
+class KafkaTypingEventPublisher implements TypingEventPublisher, SmartInitializingSingleton {
 
     static final String TOPIC = "typing_events";
     private static final Logger LOG = LoggerFactory.getLogger(KafkaTypingEventPublisher.class);
@@ -27,10 +29,26 @@ class KafkaTypingEventPublisher implements TypingEventPublisher {
     }
 
     @Override
+    public void afterSingletonsInstantiated() {
+        try {
+            int particiones = kafkaTemplate.partitionsFor(TOPIC).size();
+            LOG.info("Productor Kafka listo antes de recibir tráfico: {} con {} particiones", TOPIC, particiones);
+        } catch (KafkaException | org.apache.kafka.common.KafkaException error) {
+            LOG.warn("No se pudo preparar el productor Kafka de {}; se creará con la primera petición: {}",
+                    TOPIC, error.getMessage());
+        }
+    }
+
+    @Override
     public void publicar(TypingEvent evento) {
         Objects.requireNonNull(evento, "El evento de tecleo es obligatorio");
-        kafkaTemplate.send(TOPIC, evento.claveParticion(), aJson(evento))
-                .whenComplete((resultado, error) -> registrarFallo(evento, error));
+        String json = aJson(evento);
+        try {
+            kafkaTemplate.send(TOPIC, evento.claveParticion(), json)
+                    .whenComplete((resultado, error) -> registrarFallo(evento, error));
+        } catch (KafkaException | org.apache.kafka.common.KafkaException error) {
+            registrarFallo(evento, error);
+        }
     }
 
     private String aJson(TypingEvent evento) {
