@@ -246,7 +246,7 @@ services:
       CHAT_GROUPS: ${CHAT_GROUPS}
       CORS_ORIGIN: ${CORS_ORIGIN}
     ports:
-      - "8081:8081"
+      - "127.0.0.1:8081:8081"
     networks:
       - frontend-net
       - broker-net
@@ -342,7 +342,7 @@ services:
       CHAT_GROUPS: ${CHAT_GROUPS}
       CORS_ORIGIN: ${CORS_ORIGIN}
     ports:
-      - "8082:8082"
+      - "127.0.0.1:8082:8082"
     networks:
       - frontend-net
       - broker-net
