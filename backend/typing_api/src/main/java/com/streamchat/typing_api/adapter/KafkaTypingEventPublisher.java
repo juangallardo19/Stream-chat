@@ -7,6 +7,7 @@ import com.streamchat.typing_api.mapper.TypingEventMapper;
 import com.streamchat.typing_api.port.TypingEventPublisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.SmartInitializingSingleton;
 import org.springframework.kafka.KafkaException;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
@@ -14,7 +15,7 @@ import org.springframework.stereotype.Component;
 import java.util.Objects;
 
 @Component
-class KafkaTypingEventPublisher implements TypingEventPublisher {
+class KafkaTypingEventPublisher implements TypingEventPublisher, SmartInitializingSingleton {
 
     static final String TOPIC = "typing_events";
     private static final Logger LOG = LoggerFactory.getLogger(KafkaTypingEventPublisher.class);
@@ -25,6 +26,10 @@ class KafkaTypingEventPublisher implements TypingEventPublisher {
     KafkaTypingEventPublisher(KafkaTemplate<String, String> kafkaTemplate, ObjectMapper objectMapper) {
         this.kafkaTemplate = kafkaTemplate;
         this.objectMapper = objectMapper;
+    }
+
+    @Override
+    public void afterSingletonsInstantiated() {
     }
 
     @Override
