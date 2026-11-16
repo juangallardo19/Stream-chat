@@ -28,7 +28,7 @@ cd backend/chat_api && mvn test
 | chat_backend | 100 |
 | audit_bridge | 38 |
 | analytics_service | 48 |
-| typing_api | 65 |
+| typing_api | 70 |
 | typing_processor | 112 (State, Strategy con Factory, Observer, adaptadores y señal de envío) |
 | status_backend | 82 |
 
@@ -256,14 +256,22 @@ Con `prod`, `analytics_service` usa `ddl-auto=validate`: Hibernate no crea tabla
 
 #### Primer tecleo después de reiniciar typing_api
 
-Cada réplica de `typing_api` crea su productor Kafka con la primera petición. Medido: esa primera tecla llega a Kafka entre 2,6 y 3,3 s tarde, el navegador recibe un `504` aunque el evento sí se publicó, y como `typing_processor` mide la ventana desde `occurredAt`, ese primer `STOPPED` llega a los 0,3–1,5 s en vez de a los 4 s. Desde la segunda petición, el retraso es de menos de 10 ms. Antes de una demostración, calienta las dos réplicas:
+Antes, cada réplica de `typing_api` creaba su productor Kafka con la primera petición: esa tecla llegaba a Kafka 2,6–3,3 s tarde, el navegador recibía `504` y, como `typing_processor` mide la ventana desde `occurredAt`, el indicador solo se veía 0,3–1,5 s.
+
+Ahora `KafkaTypingEventPublisher` prepara el productor al arrancar (`SmartInitializingSingleton`, antes de que Tomcat abra el puerto 8080) y `spring.mvc.servlet.load-on-startup=1` inicializa Spring MVC al arrancar. Compruébalo en el log de cada réplica: "Productor Kafka listo antes de recibir tráfico" debe aparecer antes de "Tomcat started on port 8080".
+
+```bash
+docker compose up -d --build typing_api
+docker logs streamchat-typing_api-1 2>&1 | grep -E "Productor Kafka listo|No se pudo preparar|Tomcat started"
+```
+
+Medido después del cambio, con cada réplica recién reiniciada: la primera tecla responde `202` en ~2 s, llega a Kafka entre 190 y 310 ms después de `occurredAt` y el indicador se ve 3,1–4,3 s. Desde la segunda petición la respuesta tarda milisegundos. Si Kafka está caído al arrancar, el servicio arranca igual con el aviso "No se pudo preparar el productor Kafka" y los eventos se descartan con un aviso en el log, sin error 500.
+
+Opcional antes de una demostración, para que también la primera tecla responda en milisegundos:
 
 ```bash
 for i in $(seq 1 10); do curl -s -o /dev/null -w "%{http_code} %{time_total}s\n" -m 10 -X POST http://localhost/typing -H "Content-Type: application/json" -d '{"user":"Calentamiento","group":"GrupoC"}'; done
-for c in streamchat-typing_api-1 streamchat-typing_api-2; do docker logs $c 2>&1 | grep -q "Kafka startTimeMs" && echo "$c caliente" || echo "$c sigue en frio: repite el ciclo"; done
 ```
-
-Las primeras respuestas pueden ser `504`; las demás deben ser `202` en milisegundos. El gateway reparte al azar entre réplicas, por eso se envían 10 y se comprueba cada una.
 
 ## Pruebas manuales con `curl`
 
