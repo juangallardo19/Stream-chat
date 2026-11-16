@@ -30,6 +30,13 @@ class KafkaTypingEventPublisher implements TypingEventPublisher, SmartInitializi
 
     @Override
     public void afterSingletonsInstantiated() {
+        try {
+            int particiones = kafkaTemplate.partitionsFor(TOPIC).size();
+            LOG.info("Productor Kafka listo antes de recibir tráfico: {} con {} particiones", TOPIC, particiones);
+        } catch (KafkaException | org.apache.kafka.common.KafkaException error) {
+            LOG.warn("No se pudo preparar el productor Kafka de {}; se creará con la primera petición: {}",
+                    TOPIC, error.getMessage());
+        }
     }
 
     @Override
@@ -39,7 +46,7 @@ class KafkaTypingEventPublisher implements TypingEventPublisher, SmartInitializi
         try {
             kafkaTemplate.send(TOPIC, evento.claveParticion(), json)
                     .whenComplete((resultado, error) -> registrarFallo(evento, error));
-        } catch (KafkaException error) {
+        } catch (KafkaException | org.apache.kafka.common.KafkaException error) {
             registrarFallo(evento, error);
         }
     }
