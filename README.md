@@ -273,6 +273,20 @@ Opcional antes de una demostración, para que también la primera tecla responda
 for i in $(seq 1 10); do curl -s -o /dev/null -w "%{http_code} %{time_total}s\n" -m 10 -X POST http://localhost/typing -H "Content-Type: application/json" -d '{"user":"Calentamiento","group":"GrupoC"}'; done
 ```
 
+## Despliegue en AWS
+
+Todo el stack corre en una sola instancia EC2 (`t3.large`, Ubuntu 24.04) con los archivos de endurecimiento de `deploy/`:
+
+| Archivo | Qué hace |
+|---|---|
+| `deploy/nftables.conf` | Firewall con denegar por defecto, SSH solo desde las IPs del equipo y compatible con Docker |
+| `deploy/sshd/01-hardening.conf` | SSH solo con llave, sin root y con `AllowUsers` |
+| `deploy/fail2ban/jail.local` | Bloqueo de intentos de acceso repetidos (`sshd` y `recidive`) |
+| `deploy/sysctl/99-hardening.conf` | Parámetros de red y memoria del kernel, con `ip_forward` para Docker |
+| `deploy/scripts/check-resources.sh` | Revisión de CPU, memoria, disco y contenedores, pensada para cron |
+
+El paso a paso de cómo aplicarlos en el servidor está en una guía interna del equipo que no se publica en el repositorio. Las IPs, usuarios y contraseñas reales nunca están en estos archivos: se ponen solo en el servidor.
+
 ## Pruebas manuales con `curl`
 
 ### Tildes y signos en Git Bash de Windows
