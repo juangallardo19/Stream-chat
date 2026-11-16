@@ -7,6 +7,7 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.streamchat.typing_api.domain.GroupId;
 import com.streamchat.typing_api.domain.TypingEvent;
 import com.streamchat.typing_api.domain.UserId;
+import org.apache.kafka.common.errors.TimeoutException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -15,6 +16,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.kafka.KafkaException;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.SendResult;
 
@@ -87,6 +89,18 @@ class KafkaTypingEventPublisherTest {
         void aceptaLaPerdida() {
             when(kafkaTemplate.send(anyString(), anyString(), anyString()))
                     .thenReturn(CompletableFuture.failedFuture(new RuntimeException("broker caído")));
+
+            assertDoesNotThrow(() -> publicador.publicar(evento));
+
+            verify(kafkaTemplate, times(1)).send(anyString(), anyString(), anyString());
+        }
+
+        @Test
+        @DisplayName("descarta el evento sin propagar el error cuando send falla de forma síncrona")
+        void descartaFalloSincrono() {
+            when(kafkaTemplate.send(anyString(), anyString(), anyString()))
+                    .thenThrow(new KafkaException("Send failed",
+                            new TimeoutException("Topic typing_events not present in metadata after 2000 ms.")));
 
             assertDoesNotThrow(() -> publicador.publicar(evento));
 
