@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stream-Chat</title>
+    <link rel="stylesheet" href="chat.css">
+</head>
+<body>
+<main class="app">
+    <header class="cabecera">
+        <div class="marca">
+            <span class="logo">SC</span>
+            <h1>Stream-Chat</h1>
+        </div>
+        <div class="conexiones">
+            <span id="estado-chat" class="conexion desconectado">Mensajes: desconectado</span>
+            <span id="estado-tecleo" class="conexion desconectado">Estado: desconectado</span>
+        </div>
+    </header>
+
+    <form id="formulario-entrada" class="entrada tarjeta">
+        <h2>Entra a un grupo</h2>
+        <p>Escribe tu nombre y elige el grupo en el que quieres conversar.</p>
+        <label>Usuario
+            <input id="usuario" type="text" maxlength="40" pattern="[A-Za-z0-9_\-]+" required placeholder="Ana">
+        </label>
+        <label>Grupo
+            <select id="grupo">
+                <option value="GrupoA">GrupoA</option>
+                <option value="GrupoB">GrupoB</option>
+                <option value="GrupoC">GrupoC</option>
+            </select>
+        </label>
+        <button type="submit">Entrar</button>
+    </form>
+
+    <div id="contenido" class="contenido oculto">
+        <section id="sala" class="sala tarjeta">
+            <div class="sala-cabecera">
+                <h2 id="titulo-sala"></h2>
+                <span id="subtitulo-sala"></span>
+            </div>
+            <ul id="mensajes" class="mensajes"></ul>
+            <div id="indicador" class="indicador oculto" aria-live="polite">
+                <span class="puntos"><span></span><span></span><span></span></span>
+                <span id="texto-indicador"></span>
+            </div>
+            <form id="formulario-mensaje" class="envio">
+                <input id="texto" type="text" maxlength="1000" autocomplete="off" placeholder="Escribe un mensaje y presiona Enter">
+                <button type="submit">Enviar</button>
+            </form>
+            <p id="error" class="error"></p>
+        </section>
+
+        <aside class="lateral">
+            <section class="panel tarjeta">
+                <div class="panel-cabecera">
+                    <h2>Panel de evidencia</h2>
+                    <button id="reiniciar" type="button" class="secundario">Reiniciar</button>
+                </div>
+                <div class="metricas">
+                    <div class="metrica">
+                        <span id="ev-tecleos" class="valor">0</span>
+                        <span class="etiqueta">Eventos de tecleo enviados</span>
+                        <span id="ev-fallidos" class="detalle">POST /typing</span>
+                    </div>
+                    <div class="metrica">
+                        <span id="ev-transiciones" class="valor">0</span>
+                        <span class="etiqueta">Transiciones recibidas</span>
+                        <span id="ev-detalle" class="detalle">TYPING 0 · STOPPED 0</span>
+                    </div>
+                    <div class="metrica destacada">
+                        <span id="ev-proporcion" class="valor">—</span>
+                        <span class="etiqueta">Eventos por transición</span>
+                        <span class="detalle">debounce de typing_processor</span>
+                    </div>
+                    <div class="metrica">
+                        <span id="ev-mensajes" class="valor">0</span>
+                        <span class="etiqueta">Mensajes enviados</span>
+                        <span class="detalle">POST /message</span>
+                    </div>
+                </div>
+                <p id="ev-grupo" class="nota"></p>
+            </section>
+
+            <section class="panel tarjeta">
+                <div class="panel-cabecera">
+                    <h2>Bots</h2>
+                    <span id="estado-bots" class="estado-bots">Detenidos</span>
+                </div>
+                <p class="nota">Usuarios simulados que teclean con ritmo humano, hacen pausas y envían frases al azar en este grupo.</p>
+                <div class="bots">
+                    <label>Cantidad
+                        <select id="cantidad-bots">
+                            <option value="1">1</option>
+                            <option value="2">2</option>
+                            <option value="3" selected>3</option>
+                            <option value="5">5</option>
+                        </select>
+                    </label>
+                    <button id="boton-bots" type="button">Activar bots</button>
+                </div>
+                <ul id="lista-bots" class="lista-bots"></ul>
+            </section>
+        </aside>
+    </div>
+</main>
+<script src="chat.js"></script>
+</body>
+</html>
